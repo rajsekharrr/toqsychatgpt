@@ -1,0 +1,601 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Toqsy Assistant <assistant@example.com>
+Date: Fri, 12 Sep 2025 20:00:00 +0000
+Subject: [PATCH] Toqsy MVP -- add UI, utils, API stubs, styles, and DB init
+
+---
+ src/utils/supabaseClient.ts         | 16 ++++++++++++++++++
+ src/utils/supabaseServerClient.ts   | 22 ++++++++++++++++++++++
+ src/components/Navbar.tsx           | 62 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/styles/globals.css              | 33 +++++++++++++++++++++++++
+ tailwind.config.js                  | 29 +++++++++++++++++++++
+ db/init.sql                         | 86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/app/profile-setup/page.tsx      | 184 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/app/dashboard/page.tsx          | 220 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/app/practice/page.tsx           | 137 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/app/api/generate-icebreakers/route.ts | 180 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ README_PATCH.txt                    | 38 +++++++++++++++++++++++++++++++++
+ 11 files changed, 1007 insertions(+)
+ create mode 100644 src/utils/supabaseClient.ts
+ create mode 100644 src/utils/supabaseServerClient.ts
+ create mode 100644 src/components/Navbar.tsx
+ create mode 100644 src/styles/globals.css
+ create mode 100644 tailwind.config.js
+ create mode 100644 db/init.sql
+ create mode 100644 src/app/profile-setup/page.tsx
+ create mode 100644 src/app/dashboard/page.tsx
+ create mode 100644 src/app/practice/page.tsx
+ create mode 100644 src/app/api/generate-icebreakers/route.ts
+ create mode 100644 README_PATCH.txt
+
+diff --git a/src/utils/supabaseClient.ts b/src/utils/supabaseClient.ts
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/utils/supabaseClient.ts
+@@ -0,0 +1,16 @@
++import { createClient } from '@supabase/supabase-js'
++
++// Client-side Supabase config (safe to expose anon key)
++const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
++const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
++
++export const supabase = createClient(supabaseUrl, supabaseAnonKey)
++
++// Helpful small helper to get current user session
++export async function getCurrentUser() {
++  const { data } = await supabase.auth.getUser()
++  return data?.user ?? null
++}
+diff --git a/src/utils/supabaseServerClient.ts b/src/utils/supabaseServerClient.ts
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/utils/supabaseServerClient.ts
+@@ -0,0 +1,22 @@
++import { createClient } from '@supabase/supabase-js'
++
++// Server-side Supabase client (use service role key)
++export function createServerSupabaseClient() {
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
++  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
++  return createClient(url, key)
++}
++
++// Example usage:
++// const supa = createServerSupabaseClient()
++// const { data } = await supa.from('profiles').select('*').eq('user_id', userId).single()
+diff --git a/src/components/Navbar.tsx b/src/components/Navbar.tsx
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/components/Navbar.tsx
+@@ -0,0 +1,62 @@
++'use client'
++import Link from 'next/link'
++import { useEffect, useState } from 'react'
++import { supabase, getCurrentUser } from '@/utils/supabaseClient'
++
++export default function Navbar() {
++  const [email, setEmail] = useState<string | null>(null)
++
++  useEffect(() => {
++    getCurrentUser().then(user => {
++      if (user) setEmail(user.email ?? null)
++    })
++    // listen for auth changes (so signout in another tab updates)
++    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
++      setEmail(session?.user?.email ?? null)
++    })
++    return () => sub?.subscription.unsubscribe()
++  }, [])
++
++  async function handleSignOut() {
++    await supabase.auth.signOut()
++    window.location.href = '/login'
++  }
++
++  return (
++    <nav className="bg-white border-b" role="navigation">
++      <div className="container mx-auto flex items-center justify-between py-3 px-4">
++        <div className="flex items-center gap-3">
++          <div className="w-10 h-10 rounded-md" style={{ background: 'var(--primary)' }} />
++          <Link href="/" className="font-semibold text-lg" style={{ color: 'var(--primary)' }}>Toqsy</Link>
++        </div>
++        <div className="flex items-center gap-4 text-sm text-midGray">
++          <Link href="/dashboard" className="hover:underline">Dashboard</Link>
++          {!email ? (
++            <>
++              <Link href="/signup" className="px-3 py-1 rounded" style={{ background: 'var(--primary)', color: '#fff' }}>Sign up</Link>
++              <Link href="/login" className="px-3 py-1">Login</Link>
++            </>
++          ) : (
++            <>
++              <span className="text-sm">{email}</span>
++              <button onClick={handleSignOut} className="px-3 py-1 rounded" style={{ background: 'var(--rose)', color: '#fff' }}>Sign out</button>
++            </>
++          )}
++        </div>
++      </div>
++    </nav>
++  )
++}
+diff --git a/src/styles/globals.css b/src/styles/globals.css
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/styles/globals.css
+@@ -0,0 +1,33 @@
++@tailwind base;
++@tailwind components;
++@tailwind utilities;
++
++:root{
++  --primary: #3A8DFF;
++  --primary-2: #5BA8FF;
++  --accent: #3DD9B4;
++  --accent-2: #6FE8C9;
++  --text-main: #1F2933;
++  --text-muted: #4B5563;
++  --bg: #F9FAFB;
++  --card: #FFFFFF;
++  --border: #E5E7EB;
++}
++
++html,body {
++  background: var(--bg);
++  color: var(--text-main);
++  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
++}
++
++.container { max-width: 980px; margin: 0 auto; padding: 20px; }
++
++.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+diff --git a/tailwind.config.js b/tailwind.config.js
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tailwind.config.js
+@@ -0,0 +1,29 @@
++/** @type {import('tailwindcss').Config} */
++module.exports = {
++  content: [
++    "./src/app/**/*.{js,ts,jsx,tsx}",
++    "./src/components/**/*.{js,ts,jsx,tsx}"
++  ],
++  theme: {
++    extend: {
++      colors: {
++        blue1: '#3A8DFF',
++        blue2: '#5BA8FF',
++        teal1: '#3DD9B4',
++        teal2: '#6FE8C9',
++        darkGray: '#1F2933',
++        midGray: '#4B5563',
++        lightGray: '#E5E7EB',
++        offWhite: '#F9FAFB',
++        indigo: '#6366F1',
++        sky: '#38BDF8',
++        mint: '#A7F3D0',
++        amber: '#FBBF24',
++        rose: '#F87171',
++        purple: '#A855F7',
++        white: '#FFFFFF'
++      }
++    }
++  },
++  plugins: [],
++}
+diff --git a/db/init.sql b/db/init.sql
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/db/init.sql
+@@ -0,0 +1,86 @@
++-- Toqsy MVP DB init script
++-- Run this in Supabase SQL editor
++create extension if not exists "uuid-ossp";
++
++create table if not exists public.profiles (
++  id uuid not null default uuid_generate_v4(),
++  user_id uuid not null references auth.users(id) unique,
++  first_name text not null,
++  last_name text,
++  location text,
++  age integer,
++  hobbies text[],
++  personality text[],
++  avatar_url text,
++  gender text,
++  preferred_language text,
++  comfort_level integer,
++  goal text,
++  created_at timestamptz default now(),
++  updated_at timestamptz default now(),
++  primary key (id)
++);
++
++create table if not exists public.images (
++  id uuid default uuid_generate_v4() primary key,
++  user_id uuid references auth.users(id),
++  url text not null,
++  filename text,
++  size bigint,
++  uploaded_at timestamptz default now()
++);
++
++create table if not exists public.icebreakers (
++  id uuid default uuid_generate_v4() primary key,
++  user_id uuid references auth.users(id),
++  context_text text,
++  image_url text,
++  results jsonb,
++  created_at timestamptz default now()
++);
++
++create table if not exists public.conversations (
++  id uuid default uuid_generate_v4() primary key,
++  user_id uuid references auth.users(id),
++  scenario_text text,
++  messages jsonb,
++  assessment jsonb,
++  created_at timestamptz default now()
++);
++
++alter table public.profiles enable row level security;
++
++create policy "profiles_select_own" on public.profiles
++  for select
++  using ( auth.uid() = user_id );
++
++create policy "profiles_insert_own" on public.profiles
++  for insert
++  with check ( auth.uid() = user_id );
++
++create policy "profiles_update_own" on public.profiles
++  for update
++  using ( auth.uid() = user_id )
++  with check ( auth.uid() = user_id );
+diff --git a/src/app/profile-setup/page.tsx b/src/app/profile-setup/page.tsx
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/app/profile-setup/page.tsx
+@@ -0,0 +1,184 @@
++'use client'
++import { useEffect, useState } from 'react'
++import { supabase } from '@/utils/supabaseClient'
++import { useRouter } from 'next/navigation'
++
++export default function ProfileSetup() {
++  const [firstName, setFirstName] = useState('')
++  const [lastName, setLastName] = useState('')
++  const [age, setAge] = useState('')
++  const [location, setLocation] = useState('')
++  const [hobbies, setHobbies] = useState('')
++  const [personality, setPersonality] = useState('')
++  const [gender, setGender] = useState('')
++  const [language, setLanguage] = useState('')
++  const [comfort, setComfort] = useState(5)
++  const [goal, setGoal] = useState('')
++  const [avatarFile, setAvatarFile] = useState<File | null>(null)
++  const router = useRouter()
++
++  useEffect(()=> {
++    supabase.auth.getUser().then(res => {
++      if(!res.data.user) router.push('/login')
++    })
++  },[])
++
++  async function handleSubmit(e:any){
++    e.preventDefault()
++    const user = await supabase.auth.getUser()
++    const userId = user.data.user?.id
++    let avatar_url = null
++    if(avatarFile && userId){
++      const fileName = `${userId}-avatar-${Date.now()}-${avatarFile.name}`
++      const { data, error } = await supabase.storage.from('user-images').upload(fileName, avatarFile)
++      if(error){ alert(error.message); return }
++      avatar_url = supabase.storage.from('user-images').getPublicUrl(data.path).data.publicUrl
++    }
++
++    const { error } = await supabase.from('profiles').upsert({
++      user_id: userId,
++      first_name: firstName,
++      last_name: lastName,
++      age: age ? parseInt(age) : null,
++      location,
++      hobbies: hobbies ? hobbies.split(',').map(s=>s.trim()) : null,
++      personality: personality ? personality.split(',').map(s=>s.trim()) : null,
++      gender,
++      preferred_language: language,
++      comfort_level: comfort,
++      goal,
++      avatar_url
++    }, { onConflict: 'user_id' })
++    if(error) return alert(error.message)
++    router.push('/dashboard')
++  }
++
++  return (
++    <section className="container">
++      <div className="card">
++        <h2 className="text-2xl font-semibold">Profile setup</h2>
++        <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-3">
++          <input required placeholder="First name" value={firstName} onChange={e=>setFirstName(e.target.value)} className="p-2 border rounded" />
++          <input placeholder="Last name" value={lastName} onChange={e=>setLastName(e.target.value)} className="p-2 border rounded" />
++          <div className="flex gap-3">
++            <input placeholder="Age" value={age} onChange={e=>setAge(e.target.value)} className="p-2 border rounded w-32" />
++            <input placeholder="Location" value={location} onChange={e=>setLocation(e.target.value)} className="p-2 border rounded flex-1" />
++          </div>
++          <input placeholder="Hobbies (comma separated)" value={hobbies} onChange={e=>setHobbies(e.target.value)} className="p-2 border rounded" />
++          <input placeholder="Personality traits (comma separated)" value={personality} onChange={e=>setPersonality(e.target.value)} className="p-2 border rounded" />
++          <select value={gender} onChange={e=>setGender(e.target.value)} className="p-2 border rounded">
++            <option value="">Select gender</option>
++            <option>Male</option><option>Female</option><option>Other</option>
++          </select>
++          <input placeholder="Preferred language" value={language} onChange={e=>setLanguage(e.target.value)} className="p-2 border rounded" />
++          <label className="flex items-center gap-3">Comfort level:
++            <input type="range" min="1" max="10" value={comfort} onChange={e=>setComfort(parseInt(e.target.value))} />
++            <span className="ml-2">{comfort}</span>
++          </label>
++          <textarea placeholder="Goal (why you want to improve social skills)" value={goal} onChange={e=>setGoal(e.target.value)} className="p-2 border rounded" />
++          <label className="flex flex-col gap-2">
++            Avatar (optional)
++            <input type="file" onChange={e=>setAvatarFile(e.target.files?.[0]||null)} />
++          </label>
++          <div className="flex gap-3">
++            <button type="submit" className="px-4 py-2 rounded" style={{background:'var(--primary)',color:'#fff'}}>Save profile</button>
++            <button type="button" onClick={()=>window.location.href='/dashboard'} className="px-4 py-2 rounded border">Skip for now</button>
++          </div>
++        </form>
++      </div>
++    </section>
++  )
++}
+diff --git a/src/app/dashboard/page.tsx b/src/app/dashboard/page.tsx
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/app/dashboard/page.tsx
+@@ -0,0 +1,220 @@
++'use client'
++import { useEffect, useState } from 'react'
++import { supabase } from '@/utils/supabaseClient'
++
++export default function Dashboard(){
++  const [profile, setProfile] = useState<any>(null)
++  const [context, setContext] = useState('')
++  const [imageFile, setImageFile] = useState<File | null>(null)
++  const [results, setResults] = useState<any[]>([])
++  const [loading, setLoading] = useState(false)
++
++  useEffect(()=> {
++    supabase.auth.getUser().then(async res => {
++      const user = res.data.user
++      if(!user) { window.location.href = '/login'; return }
++      const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single()
++      setProfile(data)
++    })
++  },[])
++
++  async function handleGenerate(e:any){
++    e.preventDefault()
++    setLoading(true)
++    const user = await supabase.auth.getUser()
++    const userId = user.data.user?.id
++    let imageUrl = null
++    if(imageFile && userId){
++      const fileName = `${userId}-ctx-${Date.now()}-${imageFile.name}`
++      const { data, error } = await supabase.storage.from('user-images').upload(fileName, imageFile)
++      if(error){ alert(error.message); setLoading(false); return }
++      imageUrl = supabase.storage.from('user-images').getPublicUrl(data.path).data.publicUrl
++      // save image record
++      await supabase.from('images').insert({ user_id: userId, url: imageUrl, filename: fileName })
++    }
++
++    const resp = await fetch('/api/generate-icebreakers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userId, contextText: context, imageUrl }) })
++    const json = await resp.json()
++    setResults(json.results || [])
++    setLoading(false)
++  }
++
++  return (
++    <section className="container">
++      <div className="flex items-start gap-6">
++        <div className="w-2/3">
++          <div className="card">
++            <h3 className="text-lg font-semibold">Create Icebreakers</h3>
++            <p className="text-sm text-midGray">Describe the situation or upload a reference image (optional)</p>
++            <form onSubmit={handleGenerate} className="mt-3 grid gap-3">
++              <textarea placeholder="Describe the situation..." value={context} onChange={e=>setContext(e.target.value)} className="p-3 border rounded h-28" />
++              <input type="file" accept="image/*" onChange={e=>setImageFile(e.target.files?.[0]||null)} />
++              <div className="flex gap-3">
++                <button disabled={loading} className="px-4 py-2 rounded" style={{background:'var(--primary)',color:'#fff'}}>Generate</button>
++                <button type="button" className="px-4 py-2 rounded border" onClick={()=>{ setContext(''); setImageFile(null); setResults([]) }}>Reset</button>
++              </div>
++            </form>
++          </div>
++          <div className="mt-6">
++            <h4 className="text-md font-semibold">Suggested Icebreakers</h4>
++            <div className="mt-3 grid gap-3">
++              {results.length===0 && <div className="p-4 bg-white border rounded text-sm text-midGray">No results yet. Try describing the scene and clicking Generate.</div>}
++              {results.map((r:any,i:number)=>(
++                <div key={i} className="p-3 bg-white border rounded flex justify-between items-center">
++                  <div>
++                    <div className="text-sm text-midGray">{r.tag || '—'}</div>
++                    <div className="font-medium">{r.text || JSON.stringify(r)}</div>
++                    <div className="text-xs text-midGray">{r.use_case || ''}</div>
++                  </div>
++                  <div className="flex gap-2">
++                    <button className="px-3 py-1 rounded border">Copy</button>
++                    <button className="px-3 py-1 rounded" style={{background:'var(--accent)',color:'#fff'}}>Practice</button>
++                  </div>
++                </div>
++              ))}
++            </div>
++          </div>
++        </div>
++        <aside className="w-1/3">
++          <div className="card">
++            <h4 className="font-semibold">Profile</h4>
++            {profile ? (
++              <div className="mt-2">
++                <div className="font-medium text-lg">{profile.first_name} {profile.last_name}</div>
++                <div className="text-sm text-midGray">{profile.hobbies?.join(', ')}</div>
++                <div className="mt-2 text-sm"><strong>Goal:</strong> {profile.goal}</div>
++              </div>
++            ) : <div className="text-sm text-midGray">Loading profile...</div>}
++          </div>
++        </aside>
++      </div>
++    </section>
++  )
++}
+diff --git a/src/app/practice/page.tsx b/src/app/practice/page.tsx
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/app/practice/page.tsx
+@@ -0,0 +1,137 @@
++'use client'
++import { useEffect, useState } from 'react'
++import { supabase } from '@/utils/supabaseClient'
++
++export default function PracticePage(){
++  const [running, setRunning] = useState(false)
++  const [timeLeft, setTimeLeft] = useState(30)
++  const [messages, setMessages] = useState<Array<{role:string,text:string}>>([])
++
++  useEffect(()=> {
++    let t:any
++    if(running){
++      t = setInterval(()=> setTimeLeft(s => {
++        if(s<=1){ setRunning(false); clearInterval(t); return 0 }
++        return s-1
++      }),1000)
++    }
++    return ()=> clearInterval(t)
++  },[running])
++
++  async function start(){
++    setMessages([{role:'ai', text:'Hi! Let\\'s practice a short 30s conversation. Say hi to begin.'}])
++    setTimeLeft(30)
++    setRunning(true)
++  }
++
++  function sendUser(text:string){
++    setMessages(prev => [...prev, {role:'user', text}])
++    // simulate AI reply (placeholder)
++    setTimeout(()=> setMessages(prev => [...prev, {role:'ai', text:'Nice! Tell me more about that.'}]), 700)
++  }
++
++  return (
++    <section className="container">
++      <div className="card">
++        <h2 className="text-2xl font-semibold">30s Practice</h2>
++        <div className="mt-3 p-2 bg-white border rounded h-48 overflow-auto">
++          {messages.map((m,i)=>(<div key={i} className={m.role==='ai'?'text-left':'text-right'}><small className="text-midGray">{m.role}</small><div>{m.text}</div></div>))}
++        </div>
++        <div className="mt-3 flex items-center gap-3">
++          {!running ? <button onClick={start} className="px-4 py-2 rounded" style={{background:'var(--primary)',color:'#fff'}}>Start 30s practice</button> : <div>Time left: {timeLeft}s</div>}
++        </div>
++        <div className="mt-3">
++          <PracticeInput onSend={(t)=>sendUser(t)} disabled={!running} />
++        </div>
++      </div>
++    </section>
++  )
++}
++
++function PracticeInput({ onSend, disabled }:{ onSend:(t:string)=>void, disabled?:boolean }){
++  const [text, setText] = useState('')
++  return (
++    <div className="mt-2 flex gap-2">
++      <input value={text} onChange={e=>setText(e.target.value)} disabled={disabled} className="flex-1 p-2 border rounded" placeholder="Type a message..." />
++      <button onClick={()=>{ if(!text) return; onSend(text); setText('') }} className="px-3 py-2 rounded" style={{background:'var(--primary)',color:'#fff'}}>Send</button>
++    </div>
++  )
++}
+diff --git a/src/app/api/generate-icebreakers/route.ts b/src/app/api/generate-icebreakers/route.ts
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/app/api/generate-icebreakers/route.ts
+@@ -0,0 +1,180 @@
++import { NextResponse } from 'next/server'
++import OpenAI from 'openai'
++import { createServerSupabaseClient } from '@/utils/supabaseServerClient'
++
++const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
++
++export async function POST(req: Request) {
++  try {
++    const { userId, contextText, imageUrl } = await req.json()
++    const supa = createServerSupabaseClient()
++    const { data: profile } = await supa.from('profiles').select('*').eq('user_id', userId).single()
++
++    // Build prompt with profile context
++    const prompt = `
++You are a friendly assistant that writes very short, safe, personalized icebreakers.
++Profile: ${JSON.stringify(profile)}
++Scenario: ${contextText || ''}
++Image: ${imageUrl || ''}
++
++Provide 6 short icebreakers as JSON array: [{ "text": "...", "tag":"", "use_case": "" }, ...]
++Keep each icebreaker under 140 characters.
++`
++
++    const resp = await openai.chat.completions.create({
++      model: 'gpt-4o-mini',
++      messages: [{ role: 'system', content: prompt }],
++      max_tokens: 400,
++      temperature: 0.8,
++    })
++
++    const raw = resp.choices?.[0]?.message?.content ?? ''
++    let results = []
++    try { results = JSON.parse(raw) } catch(e) { results = raw.split('\n').filter(Boolean).map(t=>({text:t})) }
++
++    await supa.from('icebreakers').insert({ user_id: userId, context_text: contextText, image_url: imageUrl, results })
++
++    return NextResponse.json({ results })
++  } catch (err:any) {
++    console.error(err)
++    return NextResponse.json({ error: err.message || String(err) }, { status:500 })
++  }
++}
+diff --git a/README_PATCH.txt b/README_PATCH.txt
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/README_PATCH.txt
+@@ -0,0 +1,38 @@
++To apply this patch:
++
++1. Save this file as `toqsy-mvp.patch` in your project root (G:\Toqsy.com\toqsychatgpt).
++2. Ensure you have a clean working tree or a backup branch:
++   git add .
++   git commit -m "backup" || echo "no changes to commit"
++   git checkout -b backup-before-patch
++3. Switch to a feature branch and apply:
++   git checkout main
++   git pull origin main
++   git checkout -b feature/toqsy-mvp
++   git apply --3way toqsy-mvp.patch
++4. Inspect changes, then:
++   git add .
++   git commit -m "Apply Toqsy MVP patch"
++   git push -u origin feature/toqsy-mvp
++
++If `git apply` complains, paste the error here and I'll adjust the patch.
++After merge, ensure you add the following env vars to `.env.local`:
++NEXT_PUBLIC_SUPABASE_URL=
++NEXT_PUBLIC_SUPABASE_ANON_KEY=
++SUPABASE_SERVICE_ROLE_KEY=
++OPENAI_API_KEY=
++
++Run `npm install` then `npm run dev` to test locally.
++
+-- 
+2.46.3
